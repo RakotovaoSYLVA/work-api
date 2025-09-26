@@ -1,0 +1,104 @@
+// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            BigInt   @id @default(autoincrement())
+  username      String   @unique
+  email         String   @unique
+  passwordHash  String
+  roleId        BigInt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  role          Role     @relation(fields: [roleId], references: [id])
+  createdTickets Ticket[] @relation("CreatedTickets")
+  assignedTickets Ticket[] @relation("AssignedTickets")
+  messages      Message[]
+  ticketLogs    TicketLog[]
+  ticketAssignmentsAssigned TicketAssignment[] @relation("AssignedTo")
+  ticketAssignmentsGiven    TicketAssignment[] @relation("AssignedBy")
+}
+
+model Role {
+  id    BigInt @id @default(autoincrement())
+  name  String @unique
+  label String?
+
+  users User[]
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model Ticket {
+  id          BigInt   @id @default(autoincrement())
+  title       String
+  description String?
+  status      TicketStatus  @default(OPEN)
+  priority    TicketPriority @default(NORMAL)  
+  createdBy   BigInt
+  assignedTo  BigInt?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  creator  User @relation("CreatedTickets", fields: [createdBy], references: [id])
+  assignee User? @relation("AssignedTickets", fields: [assignedTo], references: [id])
+
+  assignments TicketAssignment[]
+  messages    Message[]
+  logs        TicketLog[]
+}
+
+model TicketAssignment {
+  id         BigInt   @id @default(autoincrement())
+  ticketId   BigInt
+  assignedBy BigInt
+  assignedTo BigInt
+  assignedAt DateTime @default(now())
+
+  ticket     Ticket @relation(fields: [ticketId], references: [id])
+  assignedByUser User @relation("AssignedBy", fields: [assignedBy], references: [id])
+  assignedToUser User @relation("AssignedTo", fields: [assignedTo], references: [id])
+}
+
+model Message {
+  id        BigInt   @id @default(autoincrement())
+  ticketId  BigInt
+  senderId  BigInt
+  content   String
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  sender User   @relation(fields: [senderId], references: [id])
+}
+
+model TicketLog {
+  id        BigInt   @id @default(autoincrement())
+  ticketId  BigInt
+  action    String
+  userId    BigInt
+  details   Json?
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+}
